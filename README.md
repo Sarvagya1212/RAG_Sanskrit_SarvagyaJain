@@ -47,6 +47,18 @@ A production-ready Retrieval-Augmented Generation (RAG) system for Sanskrit text
     *   **Embedding**: [intfloat/multilingual-e5-small](https://huggingface.co/intfloat/multilingual-e5-small) 
         *   *Note: This is downloaded automatically by `sentence-transformers` on first run.*
 
+5.  **Add Sanskrit Documents**
+    
+    > **IMPORTANT:** Raw data files are not included in the repository (gitignored for size).
+    
+    Place your Sanskrit text files in `data/raw/`:
+    ```bash
+    # Example: Copy your stories.txt file
+    copy path\to\your\stories.txt data\raw\stories.txt
+    ```
+    
+    **For Evaluators:** The original `stories.txt` file used in development is available upon request.
+
 ---
 
 ## 🏃 Usage
