@@ -1,0 +1,81 @@
+
+data:
+  raw_path: "./data/raw"
+  processed_path: "./data/processed"
+  samples_path: "./data/samples"
+
+models:
+  embedding:
+    name: "intfloat/multilingual-e5-small"
+    batch_size: 32
+    device: "cpu"
+    normalize: true
+  
+  llm:
+    path: "./models/llm/Qwen2.5-3B-Instruct-Q5_K_M.gguf"
+    n_ctx: 4096
+    n_threads: 4  # Adjust based on your CPU cores
+    temperature: 0.1  # Lower temperature for more focused/deterministic answers
+    top_p: 0.9
+    repeat_penalty: 1.25  # Higher penalty to prevent repetition
+    max_tokens: 300       # Shorter output limit
+
+preprocessing:
+  scripts:
+    - "devanagari"
+    - "iast"
+    - "loose_roman"
+  target_encoding: "slp1"
+  normalize_anusvara: true
+  strip_english: true
+
+chunking:
+  # Story-specific chunking
+  narrative_prose:
+    target_tokens: 180
+    overlap_sentences: 1
+  dialogue_prose:
+    split_marker: "इति"
+    keep_pairs: true
+  verse_conclusion:
+    keep_complete: true
+    no_splitting: true
+  
+  # Detection thresholds
+  danda_threshold: 0.08
+  double_danda_threshold: 0.02
+  dialogue_marker_threshold: 5
+
+indexing:
+  bm25:
+    ngram_size: 4
+    k1: 1.5
+    b: 0.75
+  
+  vector:
+    index_type: "FlatL2"  # For small dataset
+    metric: "L2"
+    normalize_vectors: true
+
+retrieval:
+  bm25_top_k: 50
+  vector_top_k: 50
+  fusion_k: 60  # RRF constant
+  final_top_k: 2
+  use_reranking: false  # Optional for small dataset
+
+generation:
+  system_prompt: |
+    You are an expert Sanskrit scholar and teacher.
+    Answer questions based strictly on the provided Sanskrit context.
+    Rules:
+    1. Quote relevant Sanskrit verses when applicable
+    2. Provide transliteration if helpful
+    3. If context insufficient, say "The provided texts do not contain sufficient information"
+    4. Never fabricate information
+    5. Be concise but accurate
+
+logging:
+  level: "INFO"
+  file: "./logs/system.log"
+  format: "[%(asctime)s] %(levelname)s [%(name)s] %(message)s"
