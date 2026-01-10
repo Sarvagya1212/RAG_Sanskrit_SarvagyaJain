@@ -1,78 +1,104 @@
 # Sanskrit RAG System
 
-Production-ready Retrieval-Augmented Generation system for Sanskrit texts using CPU-only inference.
+A production-ready Retrieval-Augmented Generation (RAG) system for Sanskrit texts, designed for **CPU-only inference**. This system ingests Sanskrit moral stories, indexes them using a hybrid strategy (BM25 + Semantic Vectors), and generates context-aware answers using a local Large Language Model.
 
-## System Overview
+## 🚀 Unique Features
 
-This system processes Sanskrit moral stories (Panchatantra-style) and enables intelligent question-answering through:
-- Multi-script support (Devanagari, IAST, loose Roman)
-- Hybrid retrieval (BM25 + Vector search)
-- LLM-powered answer generation (Qwen 2.5 3B)
+*   **Cross-Script Support**: Seamlessly handles **Devanagari** (संस्कृत), **IAST** (saṃskṛta), and **Loose Roman** (sanskrit) inputs.
+*   **Hybrid Retrieval**: Combines Lexical (BM25) precision with Semantic (embedding) understanding.
+*   **CPU Optimized**: efficient inference using `llama.cpp` and `quantized` models.
+*   **Citation Aware**: Every answer cites the source story title.
 
-## Requirements
+---
 
-- Python 3.9+
-- 8GB RAM minimum
-- 10GB disk space (for models)
-- CPU with 4+ cores recommended
+## 🛠️ Installation
 
-## Installation
+### Prerequisites
+*   Python 3.10+
+*   Allowed: 8GB+ RAM
+*   OS: Windows, Linux, or MacOS
 
+### Setup
+1.  **Clone the repository**
+    ```bash
+    git clone <repository_url>
+    cd RAG_Sanskrit_SarvagyaJain
+    ```
+
+2.  **Create Virtual Environment**
+    ```bash
+    python -m venv venv
+    # Windows
+    .\venv\Scripts\activate
+    # Linux/Mac
+    source venv/bin/activate
+    ```
+
+3.  **Install Dependencies**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Download Models**
+    The system requires two models. Place them in the `models/` directory:
+    
+    *   **LLM**: [Qwen2.5-3B-Instruct-Q5_K_M.gguf](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF)
+        *   Save to: `models/llm/Qwen2.5-3B-Instruct-Q5_K_M.gguf`
+    *   **Embedding**: [intfloat/multilingual-e5-small](https://huggingface.co/intfloat/multilingual-e5-small) 
+        *   *Note: This is downloaded automatically by `sentence-transformers` on first run.*
+
+---
+
+## 🏃 Usage
+
+The system exposes a unified CLI via `code/main.py`.
+
+### 1. Indexing (First Time Setup)
+Ingest and index the raw Sanskrit stories:
 ```bash
-# Clone repository
-git clone 
-cd RAG_Sanskrit_YourName
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Download LLM model (see Installation Guide in docs)
+python code/main.py --mode index --data ./data/raw
 ```
 
-## Quick Start
-
+### 2. Interactive Query Mode (Recommended)
+Start the chatbot interface:
 ```bash
-# Index documents
-python code/main.py --mode index --data ./data/raw
-
-# Query system
-python code/main.py --mode query
-
-# Interactive mode
 python code/main.py --interactive
 ```
+*   *Type your question in English or Sanskrit (e.g., "Who was Shankhanada?" or "शंखनादः कः आसीत्?")*
 
-## Project Structure
+### 3. Quick Query
+Run a single query from command line:
+```bash
+python code/main.py --mode query --query "कालीदासस्य विषये किम् वर्णितम्?"
+```
+
+---
+
+## 📂 Project Structure
 
 ```
-RAG_Sanskrit_YourName/
+RAG_Sanskrit_SarvagyaJain/
 ├── code/
-│   ├── src/              # Source modules
-│   ├── config/           # Configuration files
-│   ├── tests/            # Unit tests
-│   └── main.py           # Entry point
-├── data/                 # Data directories
-├── models/               # LLM and embeddings
-├── report/               # Technical report
-└── logs/                 # System logs
+│   ├── main.py               # Main CLI Entry Point
+│   ├── config/               # System configuration (YAML)
+│   ├── src/                  # Source Code
+│   │   ├── ingestion/        # Document loading & segmentation
+│   │   ├── preprocessing/    # Script normalization (SLP1)
+│   │   ├── indexing/         # BM25 & Vector Indexing
+│   │   ├── retrieval/        # Hybrid Retrieval Logic
+│   │   └── generation/       # LLM Integration (Qwen)
+│   └── scripts/              # Utility scripts (eval, debug)
+├── data/
+│   ├── raw/                  # Original stories.txt
+│   └── processed/            # Indexed artifacts (FAISS, BM25)
+├── models/                   # Local GGUF models
+└── report/                   # Documentation
+    └── Technical_Report.md   # Detailed System Report
 ```
 
-## Development Status
+## 📄 Documentation
 
-- [x] Day 1: Environment setup ✓
-- [ ] Day 2: Data loading & story segmentation
-- [ ] Day 3: Preprocessing pipeline
-- [ ] Day 4: Chunking system
-- [ ] Day 5: Vector indexing
+For a deep dive into the architecture, retrieval strategy, and performance metrics, please read the **[Technical Report](report/Technical_Report.md)**.
 
-## Documentation
-
-See `report/` directory for detailed technical documentation.
-
-## License
-
+## ⚖️ License
 MIT License
