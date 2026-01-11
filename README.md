@@ -22,7 +22,7 @@ A production-ready Retrieval-Augmented Generation (RAG) system for Sanskrit text
 ### Setup
 1.  **Clone the repository**
     ```bash
-    git clone <repository_url>
+    git clone https://github.com/Sarvagya1212/RAG_Sanskrit_SarvagyaJain.git
     cd RAG_Sanskrit_SarvagyaJain
     ```
 
