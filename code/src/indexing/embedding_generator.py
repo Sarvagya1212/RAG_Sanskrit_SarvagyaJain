@@ -51,13 +51,13 @@ class EmbeddingGenerator:
         if self.model is None:
             self.load_model()
         
-        # Extract texts to embed (handle both field names)
+        # Extract texts to embed (handle multiple field names)
         # Check if model requires prefixes (e.g. e5 models)
         is_e5 = "e5" in self.model_name.lower()
         prefix = "passage: " if is_e5 else ""
         
         texts = [
-            f"{prefix}{chunk.get('text_slp1') or chunk.get('slp1_text', '')}" 
+            f"{prefix}{chunk.get('preprocessed_text') or chunk.get('text_slp1') or chunk.get('slp1_text', '')}" 
             for chunk in chunks
         ]
         

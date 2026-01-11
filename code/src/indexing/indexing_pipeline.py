@@ -1,3 +1,5 @@
+"""Indexing pipeline for parent-child chunks."""
+
 from code.src.indexing.bm25_indexer import BM25Indexer
 from code.src.indexing.embedding_generator import EmbeddingGenerator
 from code.src.indexing.vector_indexer import VectorIndexer
@@ -11,7 +13,7 @@ from pathlib import Path
 logger = setup_logger(__name__)
 
 class IndexingPipeline:
-    """Master pipeline for building all indexes."""
+    """Indexing pipeline for parent-child hierarchical chunks."""
     
     def __init__(self, config: dict):
         """
@@ -32,113 +34,140 @@ class IndexingPipeline:
         )
         
         self.vector_indexer = VectorIndexer(
-            embedding_dim=384  # MiniLM-L6-v2 dimension
+            embedding_dim=384  # multilingual-e5-small dimension
         )
         
         self.metadata_store = MetadataStore()
     
-    def build_indexes(self, chunks_path: str = "data/processed/chunks.json"):
+    def build_indexes(
+        self, 
+        parent_chunks_path: str = "data/processed/parent_chunks.json",
+        child_chunks_path: str = "data/processed/child_chunks.json"
+    ):
         """
-        Build all indexes from chunks.
+        Build indexes from parent-child chunks.
+        
+        Strategy:
+        - Index CHILD chunks in BM25 and FAISS (for precise search)
+        - Store PARENT chunks in metadata (for context)
+        - Link children to parents via parent_id
         
         Args:
-            chunks_path: Path to chunks JSON file
+            parent_chunks_path: Path to parent chunks JSON
+            child_chunks_path: Path to child chunks JSON
         """
         logger.info("=" * 60)
-        logger.info("STARTING INDEXING PIPELINE")
+        logger.info("INDEXING PIPELINE - PARENT-CHILD STRATEGY")
         logger.info("=" * 60)
         
-        # Load chunks
-        logger.info(f"Loading chunks from {chunks_path}")
-        with open(chunks_path, 'r', encoding='utf-8') as f:
-            chunks_data = json.load(f)
+        # Step 1: Load parent chunks
+        logger.info(f"\n[Step 1] Loading parent chunks from {parent_chunks_path}")
+        with open(parent_chunks_path, 'r', encoding='utf-8') as f:
+            parents = json.load(f)
+        logger.info(f"✓ Loaded {len(parents)} parent chunks")
         
-        # Handle both nested format (from run_chunking.py) and flat list format
-        if isinstance(chunks_data, dict) and 'chunks' in chunks_data:
-            chunks = chunks_data['chunks']
-            logger.info(f"Loaded {len(chunks)} chunks from nested format")
-        else:
-            chunks = chunks_data
-            logger.info(f"Loaded {len(chunks)} chunks from flat format")
+        # Step 2: Load child chunks
+        logger.info(f"\n[Step 2] Loading child chunks from {child_chunks_path}")
+        with open(child_chunks_path, 'r', encoding='utf-8') as f:
+            children = json.load(f)
+        logger.info(f"✓ Loaded {len(children)} child chunks")
         
-        # Step 1: Build BM25 index
-        logger.info("\n[1/4] Building BM25 index...")
-        self.bm25_indexer.build_index(chunks)
-        bm25_path = "data/processed/bm25_index.pkl"
-        self.bm25_indexer.save(bm25_path)
+        # Step 3: Store parent chunks in metadata
+        logger.info(f"\n[Step 3] Storing parent chunks in metadata database...")
         
-        # Step 2: Generate embeddings
-        logger.info("\n[2/4] Generating vector embeddings...")
-        embeddings = self.embedding_generator.generate_embeddings(
-            chunks,
-            batch_size=self.config['models']['embedding']['batch_size'],
-            normalize=self.config['models']['embedding']['normalize']
-        )
+        # Update parent child_count
+        parent_counts = {}
+        for child in children:
+            parent_id = child['parent_id']
+            parent_counts[parent_id] = parent_counts.get(parent_id, 0) + 1
         
-        # Save embeddings
-        embeddings_path = "data/processed/embeddings.npy"
-        self.embedding_generator.save_embeddings(embeddings, embeddings_path)
+        for parent in parents:
+            parent['child_count'] = parent_counts.get(parent['parent_id'], 0)
         
-        # Step 3: Build FAISS index
-        logger.info("\n[3/4] Building FAISS vector index...")
-        self.vector_indexer.build_index(
-            embeddings,
-            chunks,
-            index_type=self.config['indexing']['vector']['index_type']
-        )
+        self.metadata_store.insert_parent_chunks(parents)
+        logger.info(f"✓ Stored {len(parents)} parent chunks")
         
-        # Save FAISS index
-        faiss_path = "data/processed/faiss_index.bin"
-        self.vector_indexer.save(faiss_path)
+        # Step 4: Index CHILD chunks in BM25
+        logger.info(f"\n[Step 4] Building BM25 index from child chunks...")
+        self.bm25_indexer.build_index(children)  # Pass full child dictionaries
+        self.bm25_indexer.save("data/processed/bm25_index.pkl")  # Fixed: use 'save' not 'save_index'
+        logger.info(f"✓ BM25 index built with {len(children)} child chunks")
         
-        # Step 4: Store metadata
-        logger.info("\n[4/4] Storing chunk metadata...")
-        self.metadata_store.insert_chunks(chunks)
+        # Step 5: Generate embeddings for CHILD chunks
+        logger.info(f"\n[Step 5] Generating embeddings for child chunks...")
+        embeddings = self.embedding_generator.generate_embeddings(children)  # Pass full dictionaries
+        logger.info(f"✓ Generated embeddings: {embeddings.shape}")
         
-        # Generate statistics
-        self._generate_statistics(chunks, embeddings)
+        # Step 6: Build FAISS index from child embeddings
+        logger.info(f"\n[Step 6] Building FAISS index...")
+        self.vector_indexer.build_index(embeddings, children)  # Pass both embeddings and chunks
+        self.vector_indexer.save("data/processed/faiss_index.bin")  # Fixed: use 'save'
+        logger.info(f"✓ FAISS index saved with {len(embeddings)} child vectors")
         
-        logger.info("\n" + "=" * 60)
-        logger.info("INDEXING PIPELINE COMPLETE")
-        logger.info("=" * 60)
-    
-    def _generate_statistics(self, chunks: List[Dict], embeddings: np.ndarray):
-        """Generate and save indexing statistics."""
+        # Step 7: Store child chunks in metadata
+        logger.info(f"\n[Step 7] Storing child chunks in metadata database...")
+        self.metadata_store.insert_child_chunks(children)
+        logger.info(f"✓ Stored {len(children)} child chunks with parent links")
         
-        stats = {
-            'total_chunks': len(chunks),
-            'embedding_dimension': embeddings.shape[1],
-            'embeddings_size_mb': embeddings.nbytes / (1024 * 1024),
-            'content_type_distribution': {},
-            'story_distribution': {},
-            'avg_chunk_length': 0,
-        }
+        # Step 8: Generate statistics
+        logger.info(f"\n[Step 8] Generating statistics...")
+        stats = self._generate_statistics(parents, children, embeddings)
         
-        # Count by content type
-        for chunk in chunks:
-            ctype = chunk.get('type', 'unknown')
-            stats['content_type_distribution'][ctype] = \
-                stats['content_type_distribution'].get(ctype, 0) + 1
-            
-            story_id = chunk.get('story_id', 0)
-            stats['story_distribution'][story_id] = \
-                stats['story_distribution'].get(story_id, 0) + 1
-        
-        # Average chunk length
-        total_length = sum(len(c.get('text_slp1', '')) for c in chunks)
-        stats['avg_chunk_length'] = total_length / len(chunks) if chunks else 0
-        
-        # Save statistics
-        stats_path = "data/processed/indexing_stats.json"
-        with open(stats_path, 'w') as f:
+        # Save stats
+        stats_path = Path("data/processed/indexing_stats.json")
+        with open(stats_path, 'w', encoding='utf-8') as f:
             json.dump(stats, f, indent=2)
         
-        # Print summary
-        logger.info("\n=== Indexing Statistics ===")
-        logger.info(f"Total chunks: {stats['total_chunks']}")
-        logger.info(f"Embedding dimension: {stats['embedding_dimension']}")
-        logger.info(f"Embeddings size: {stats['embeddings_size_mb']:.2f} MB")
-        logger.info(f"Avg chunk length: {stats['avg_chunk_length']:.0f} chars")
-        logger.info("\nContent type distribution:")
-        for ctype, count in stats['content_type_distribution'].items():
-            logger.info(f"  {ctype}: {count}")
+        logger.info("=" * 60)
+        logger.info("INDEXING COMPLETE")
+        logger.info("=" * 60)
+        logger.info(f"\nIndexed components:")
+        logger.info(f"  - Parent chunks: {stats['parent_count']}")
+        logger.info(f"  - Child chunks: {stats['child_count']}")
+        logger.info(f"  - BM25 index size: {stats['bm25_index_size_mb']:.2f} MB")
+        logger.info(f"  - FAISS index size: {stats['faiss_index_size_mb']:.2f} MB")
+        logger.info(f"  - Embedding dimension: {stats['embedding_dim']}")
+        logger.info(f"  - Avg children per parent: {stats['avg_children_per_parent']:.1f}")
+        
+        return stats
+    
+    def _generate_statistics(self, parents: List[Dict], children: List[Dict], embeddings: np.ndarray) -> Dict:
+        """Generate indexing statistics."""
+        
+        # Calculate index sizes
+        bm25_index_path = Path("data/processed/bm25_index.pkl")
+        faiss_index_path = Path("data/processed/faiss_index.bin")
+        
+        bm25_size_mb = bm25_index_path.stat().st_size / (1024 * 1024) if bm25_index_path.exists() else 0
+        faiss_size_mb = faiss_index_path.stat().st_size / (1024 * 1024) if faiss_index_path.exists() else 0
+        
+        # Token statistics
+        parent_tokens = [p['token_count'] for p in parents]
+        child_tokens = [c['token_count'] for c in children]
+        
+        stats = {
+            'parent_count': len(parents),
+            'child_count': len(children),
+            'avg_children_per_parent': len(children) / len(parents) if parents else 0,
+            'embedding_dim': embeddings.shape[1] if len(embeddings.shape) > 1 else 0,
+            'bm25_index_size_mb': bm25_size_mb,
+            'faiss_index_size_mb': faiss_size_mb,
+            'embeddings_size_mb': embeddings.nbytes / (1024 * 1024),
+            'parent_token_stats': {
+                'min': min(parent_tokens) if parent_tokens else 0,
+                'max': max(parent_tokens) if parent_tokens else 0,
+                'avg': sum(parent_tokens) / len(parent_tokens) if parent_tokens else 0
+            },
+            'child_token_stats': {
+                'min': min(child_tokens) if child_tokens else 0,
+                'max': max(child_tokens) if child_tokens else 0,
+                'avg': sum(child_tokens) / len(child_tokens) if child_tokens else 0
+            }
+        }
+        
+        return stats
+    
+    def close(self):
+        """Close resources."""
+        if self.metadata_store:
+            self.metadata_store.close()

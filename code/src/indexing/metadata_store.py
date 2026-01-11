@@ -1,4 +1,4 @@
-"""Metadata storage using SQLite."""
+"""Metadata storage using SQLite with parent-child chunk support."""
 
 import sqlite3
 from datetime import datetime
@@ -9,7 +9,7 @@ logger = setup_logger(__name__)
 
 
 class MetadataStore:
-    """SQLite-based metadata storage for chunks."""
+    """SQLite-based metadata storage for parent-child chunks."""
     
     def __init__(self, db_path: str = "data/processed/metadata.db"):
         """
@@ -30,65 +30,124 @@ class MetadataStore:
         self.conn.row_factory = sqlite3.Row  # Return rows as dicts
     
     def _create_schema(self):
-        """Create database schema."""
+        """Create database schema for parent-child chunks."""
         schema = """
-        CREATE TABLE IF NOT EXISTS chunks (
+        CREATE TABLE IF NOT EXISTS child_chunks (
             chunk_id TEXT PRIMARY KEY,
-            story_id INTEGER,
+            parent_id TEXT NOT NULL,
+            story_id TEXT NOT NULL,
             story_title TEXT,
-            chunk_index INTEGER,
-            text_original TEXT,
-            text_slp1 TEXT,
-            content_type TEXT,
+            
+            -- Child chunk data (indexed for search)
+            text TEXT NOT NULL,
+            preprocessed_text TEXT NOT NULL,
+            
+            -- Parent chunk data (context)
+            parent_text TEXT NOT NULL,
+            parent_preprocessed TEXT NOT NULL,
+            
+            -- Hierarchy metadata
+            child_index INTEGER,
+            total_children INTEGER,
+            
+            -- Additional metadata
             token_count INTEGER,
             vector_index INTEGER,
+            created_at TIMESTAMP,
+            
+            FOREIGN KEY (parent_id) REFERENCES parent_chunks(parent_id)
+        );
+        
+        CREATE TABLE IF NOT EXISTS parent_chunks (
+            parent_id TEXT PRIMARY KEY,
+            story_id TEXT NOT NULL,
+            story_title TEXT,
+            
+            -- Parent chunk data
+            text TEXT NOT NULL,
+            preprocessed_text TEXT NOT NULL,
+            
+            -- Metadata
+            token_count INTEGER,
+            child_count INTEGER,
             created_at TIMESTAMP
-        )
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_parent_id ON child_chunks(parent_id);
+        CREATE INDEX IF NOT EXISTS idx_story_id ON child_chunks(story_id);
         """
-        self.conn.execute(schema)
+        self.conn.executescript(schema)
         self.conn.commit()
-        logger.debug("Database schema created")
+        logger.debug("Database schema created for parent-child chunks")
     
-    def insert_chunks(self, chunks: List[Dict]):
+    def insert_parent_chunks(self, parents: List[Dict]):
         """
-        Insert chunks into database.
+        Insert parent chunks into database.
         
         Args:
-            chunks: List of chunk dictionaries
+            parents: List of parent chunk dictionaries
         """
         cursor = self.conn.cursor()
         
-        for i, chunk in enumerate(chunks):
-            # Generate globally unique chunk_id using story_id and index
-            story_id = chunk.get('story_id', 0)
-            local_id = chunk.get('chunk_id', i)
-            chunk_id = f"s{story_id}_c{local_id}_i{i}"  # Globally unique
-            
+        for parent in parents:
             cursor.execute(
                 """
-                INSERT OR REPLACE INTO chunks VALUES 
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO parent_chunks VALUES 
+                (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    chunk_id,
-                    story_id,
-                    chunk.get('story_title'),
-                    i,  # chunk_index = position in overall list
-                    chunk.get('text', chunk.get('original_text', '')),
-                    chunk.get('slp1_text', chunk.get('text_slp1', '')),
-                    chunk.get('content_type', chunk.get('type', '')),
-                    chunk.get('token_count'),
-                    i,  # vector_index = same as chunk_index
+                    parent['parent_id'],
+                    parent['story_id'],
+                    parent['story_title'],
+                    parent['text'],
+                    parent['preprocessed_text'],
+                    parent['token_count'],
+                    parent.get('child_count', 0),
                     datetime.now()
                 )
             )
         
         self.conn.commit()
-        logger.info(f"Inserted {len(chunks)} chunks into metadata DB")
+        logger.info(f"Inserted {len(parents)} parent chunks")
+    
+    def insert_child_chunks(self, children: List[Dict]):
+        """
+        Insert child chunks into database.
+        
+        Args:
+            children: List of child chunk dictionaries
+        """
+        cursor = self.conn.cursor()
+        
+        for i, child in enumerate(children):
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO child_chunks VALUES 
+                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    child['chunk_id'],
+                    child['parent_id'],
+                    child['story_id'],
+                    child['story_title'],
+                    child['text'],
+                    child['preprocessed_text'],
+                    child['parent_text'],
+                    child['parent_preprocessed'],
+                    child['child_index'],
+                    child['total_children'],
+                    child['token_count'],
+                    i,  # vector_index = position in overall list
+                    datetime.now()
+                )
+            )
+        
+        self.conn.commit()
+        logger.info(f"Inserted {len(children)} child chunks")
     
     def get_chunk_by_id(self, chunk_id: str) -> Optional[Dict]:
         """
-        Retrieve chunk by ID.
+        Retrieve a child chunk by ID.
         
         Args:
             chunk_id: Chunk identifier
@@ -96,94 +155,115 @@ class MetadataStore:
         Returns:
             Chunk dictionary or None
         """
-        cursor = self.conn.execute(
-            "SELECT * FROM chunks WHERE chunk_id = ?",
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT * FROM child_chunks WHERE chunk_id = ?",
             (chunk_id,)
         )
         row = cursor.fetchone()
         return dict(row) if row else None
-    
-    def get_chunk_by_index(self, index: int) -> Optional[Dict]:
+        
+    def get_chunk_by_vector_index(self, index: int) -> Optional[Dict]:
         """
-        Retrieve chunk by vector index.
+        Retrieve a child chunk by its vector/list index.
         
         Args:
-            index: Vector index position
+            index: Integer index (from BM25 or FAISS)
             
         Returns:
             Chunk dictionary or None
         """
-        cursor = self.conn.execute(
-            "SELECT * FROM chunks WHERE vector_index = ?",
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT * FROM child_chunks WHERE vector_index = ?",
             (index,)
         )
         row = cursor.fetchone()
         return dict(row) if row else None
     
-    def get_chunks_by_story(self, story_id: int) -> List[Dict]:
+    def get_parent_by_id(self, parent_id: str) -> Optional[Dict]:
         """
-        Retrieve all chunks from a story.
+        Retrieve a parent chunk by ID.
         
         Args:
-            story_id: Story identifier
+            parent_id: Parent chunk identifier
             
         Returns:
-            List of chunk dictionaries
+            Parent chunk dictionary or None
         """
-        cursor = self.conn.execute(
-            "SELECT * FROM chunks WHERE story_id = ? ORDER BY chunk_index",
-            (story_id,)
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT * FROM parent_chunks WHERE parent_id = ?",
+            (parent_id,)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+    
+    def get_chunks_by_parent(self, parent_id: str) -> List[Dict]:
+        """
+        Get all child chunks for a parent.
+        
+        Args:
+            parent_id: Parent chunk identifier
+            
+        Returns:
+            List of child chunk dictionaries
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT * FROM child_chunks WHERE parent_id = ? ORDER BY child_index",
+            (parent_id,)
         )
         return [dict(row) for row in cursor.fetchall()]
     
-    def get_all_chunks(self) -> List[Dict]:
+    def get_all_child_chunks(self) -> List[Dict]:
         """
-        Retrieve all chunks.
+        Get all child chunks.
         
         Returns:
-            List of all chunk dictionaries
+            List of all child chunk dictionaries
         """
-        cursor = self.conn.execute(
-            "SELECT * FROM chunks ORDER BY chunk_index"
-        )
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM child_chunks ORDER BY vector_index")
         return [dict(row) for row in cursor.fetchall()]
     
-    def get_stats(self) -> Dict[str, int]:
+    def get_statistics(self) -> Dict:
         """
         Get database statistics.
         
         Returns:
-            Dictionary with counts by content type and story
+            Statistics dictionary
         """
-        cursor = self.conn.execute("SELECT COUNT(*) FROM chunks")
-        total = cursor.fetchone()[0]
+        cursor = self.conn.cursor()
         
-        cursor = self.conn.execute(
-            "SELECT content_type, COUNT(*) FROM chunks GROUP BY content_type"
-        )
-        by_type = {row[0]: row[1] for row in cursor.fetchall()}
+        # Parent count
+        cursor.execute("SELECT COUNT(*) as count FROM parent_chunks")
+        parent_count = cursor.fetchone()['count']
         
-        cursor = self.conn.execute(
-            "SELECT COUNT(DISTINCT story_id) FROM chunks"
-        )
-        num_stories = cursor.fetchone()[0]
+        # Child count
+        cursor.execute("SELECT COUNT(*) as count FROM child_chunks")
+        child_count = cursor.fetchone()['count']
+        
+        # Unique stories
+        cursor.execute("SELECT COUNT(DISTINCT story_id) as count FROM child_chunks")
+        story_count = cursor.fetchone()['count']
         
         return {
-            'total_chunks': total,
-            'num_stories': num_stories,
-            'by_content_type': by_type
+            'parent_chunks': parent_count,
+            'child_chunks': child_count,
+            'stories': story_count,
+            'avg_children_per_parent': child_count / parent_count if parent_count > 0 else 0
         }
+    
+    def clear_all(self):
+        """Clear all data from database."""
+        self.conn.execute("DELETE FROM child_chunks")
+        self.conn.execute("DELETE FROM parent_chunks")
+        self.conn.commit()
+        logger.info("Cleared all chunks from database")
     
     def close(self):
         """Close database connection."""
         if self.conn:
             self.conn.close()
             logger.info("Database connection closed")
-    
-    def __enter__(self):
-        """Context manager entry."""
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        self.close()
