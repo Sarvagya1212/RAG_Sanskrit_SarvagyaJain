@@ -5,8 +5,9 @@ A production-ready Retrieval-Augmented Generation (RAG) system for Sanskrit text
 ## 🚀 Unique Features
 
 *   **Cross-Script Support**: Seamlessly handles **Devanagari** (संस्कृत), **IAST** (saṃskṛta), and **Loose Roman** (sanskrit) inputs.
+*   **Hierarchical Chunking**: Parent-child strategy (600-800 token parents, 150-200 token children) for optimal retrieval precision + context richness.
 *   **Hybrid Retrieval**: Combines Lexical (BM25) precision with Semantic (embedding) understanding.
-*   **CPU Optimized**: efficient inference using `llama.cpp` and `quantized` models.
+*   **CPU Optimized**: Efficient inference using `llama.cpp` and `quantized` models.
 *   **Citation Aware**: Every answer cites the source story title.
 
 ---
@@ -40,48 +41,79 @@ A production-ready Retrieval-Augmented Generation (RAG) system for Sanskrit text
     ```
 
 4.  **Download Models**
-    The system requires two models. Place them in the `models/` directory:
-    
-    *   **LLM**: [Qwen2.5-3B-Instruct-Q5_K_M.gguf](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF)
-        *   Save to: `models/llm/Qwen2.5-3B-Instruct-Q5_K_M.gguf`
-    *   **Embedding**: [intfloat/multilingual-e5-small](https://huggingface.co/intfloat/multilingual-e5-small) 
-        *   *Note: This is downloaded automatically by `sentence-transformers` on first run.*
 
-5.  **Add Sanskrit Documents**
-    
-    > **IMPORTANT:** Raw data files are not included in the repository (gitignored for size).
-    
-    Place your Sanskrit text files in `data/raw/`:
+    Create the models directory structure:
     ```bash
-    # Example: Copy your stories.txt file
-    copy path\to\your\stories.txt data\raw\stories.txt
+    mkdir -p models/llm
     ```
-    
-    **For Evaluators:** The original `stories.txt` file used in development is available upon request.
+
+    **LLM Model** (Required):
+    - Download: [Qwen2.5-3B-Instruct-Q5_K_M.gguf](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q5_k_m.gguf)
+    - Save to: `models/llm/Qwen2.5-3B-Instruct-Q5_K_M.gguf`
+    - Size: ~2GB
+
+    **Embedding Model** (Auto-downloaded):
+    - Model: `intfloat/multilingual-e5-small` (384 dimensions)
+    - Downloaded automatically by `sentence-transformers` on first run
+
+5.  **Verify Installation**
+    ```bash
+    python code/main.py --help
+    ```
 
 ---
 
 ## 🏃 Usage
 
-The system exposes a unified CLI via `code/main.py`.
+### Quick Start
 
-### 1. Indexing (First Time Setup)
-Ingest and index the raw Sanskrit stories:
+**1. Index your documents (first time):**
 ```bash
 python code/main.py --mode index --data ./data/raw
 ```
 
-### 2. Interactive Query Mode (Recommended)
-Start the chatbot interface:
+**2. Query the system:**
+```bash
+# Devanagari
+python code/main.py --mode query --query "कालिदासः कः आसीत्?" --top-k 2
+
+# IAST or Roman
+python code/main.py --mode query --query "kalidasa kaun tha?" --top-k 2
+```
+
+**3. Interactive mode:**
 ```bash
 python code/main.py --interactive
 ```
-*   *Type your question in English or Sanskrit (e.g., "Who was Shankhanada?" or "शंखनादः कः आसीत्?")*
 
-### 3. Quick Query
-Run a single query from command line:
+### CLI Options
+
 ```bash
-python code/main.py --mode query --query "कालीदासस्य विषये किम् वर्णितम्?"
+python code/main.py [OPTIONS]
+
+Options:
+  --mode {index,query}    Operation mode
+  --query TEXT            Query text (any script)
+  --data PATH             Data directory (default: ./data/raw)
+  --top-k INT             Number of results (default: 2)
+  --interactive           Start interactive REPL
+  --config PATH           Config file (default: code/config/config.yaml)
+```
+
+### Examples
+
+```bash
+# Index with custom path
+python code/main.py --mode index --data /my/texts
+
+# Query with more results  
+python code/main.py --mode query --query "राजा" --top-k 5
+
+# Interactive session
+python code/main.py --interactive
+Query> कालिदासः कः आसीत्?
+[results...]
+Query> exit
 ```
 
 ---
@@ -105,12 +137,12 @@ RAG_Sanskrit_SarvagyaJain/
 │   └── processed/            # Indexed artifacts (FAISS, BM25)
 ├── models/                   # Local GGUF models
 └── report/                   # Documentation
-    └── Technical_Report.md   # Detailed System Report
+    └── Technical_Report.pdf  # Detailed System Report
 ```
 
 ## 📄 Documentation
 
-For a deep dive into the architecture, retrieval strategy, and performance metrics, please read the **[Technical Report](report/Technical_Report.md)**.
+For a deep dive into the architecture, retrieval strategy, and performance metrics, please read the **[Technical Report](report/Technical_Report.pdf)**.
 
 ## ⚖️ License
 MIT License
