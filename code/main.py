@@ -19,7 +19,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from code.src.ingestion.pipeline import IngestionPipeline
 from code.src.preprocessing.preprocessor import SanskritPreprocessor
-from code.src.chunking.chunker import SanskritChunker  # Updated import path
 from code.src.indexing.indexing_pipeline import IndexingPipeline
 from code.src.indexing.bm25_indexer import BM25Indexer
 from code.src.indexing.embedding_generator import EmbeddingGenerator
@@ -133,7 +132,8 @@ class SanskritRAGCLI:
                 vector_indexer=self.vector_indexer,
                 embedding_generator=self.embedding_generator,
                 metadata_store=self.metadata_store,
-                preprocessor=self.preprocessor
+                preprocessor=self.preprocessor,
+                config=self.config  # Added config parameter
             )
             print(f"{Colors.GREEN}✓{Colors.END}")
             
@@ -143,6 +143,7 @@ class SanskritRAGCLI:
                 llm_config = self.config['models']['llm']
                 self.llm_generator = LLMGenerator(
                     model_path=llm_config['path'],
+                    config=self.config,  # Pass full config for adaptive context
                     n_ctx=llm_config.get('n_ctx', 4096),
                     n_threads=llm_config.get('n_threads', 4),
                     temperature=llm_config.get('temperature', 0.7),
@@ -214,7 +215,7 @@ class SanskritRAGCLI:
         # 5. RRF Fusion
         # 6. Metadata lookup (safe int casting)
         
-        results = self.retriever.retrieve(query, top_k=top_k)
+        results = self.retriever.search(query, top_k=top_k)  # Fixed: use 'search' method
         
         print(f"  → Found {len(results)} relevant results\n")
         
@@ -242,30 +243,36 @@ class SanskritRAGCLI:
     
     def _display_single_result(self, rank: int, chunk: Dict):
         """
-        Display a single search result.
+        Display a single parent-child search result.
         
         Args:
             rank: Result rank (1, 2, 3, ...)
-            chunk: Chunk dictionary with metadata
+            chunk: Parent-child chunk dictionary
         """
         # Header
         print(f"{Colors.BOLD}{Colors.BLUE}Result #{rank}{Colors.END}")
         print(f"{Colors.BOLD}├─{Colors.END} Story: {Colors.CYAN}{chunk.get('story_title', 'Unknown')}{Colors.END}")
         print(f"{Colors.BOLD}├─{Colors.END} Chunk ID: {chunk.get('chunk_id', 'Unknown')}")
-        print(f"{Colors.BOLD}├─{Colors.END} Type: {chunk.get('content_type', 'Unknown')}")
-        score = chunk.get('retrieval_score', chunk.get('rrf_score', 0))
+        print(f"{Colors.BOLD}├─{Colors.END} Parent ID: {chunk.get('parent_id', 'Unknown')}")
+        score = chunk.get('score', 0)
         print(f"{Colors.BOLD}├─{Colors.END} Score: {score:.4f}")
         
-        # Text content
-        text = chunk.get('text_original', chunk.get('text_slp1', ''))
+        # Show matched child chunk
+        child_text = chunk.get('child_text', '')
+        max_length = 150
+        if len(child_text) > max_length:
+            child_text = child_text[:max_length] + "..."
         
-        # Truncate if too long
-        max_length = 300
-        if len(text) > max_length:
-            text = text[:max_length] + "..."
+        print(f"{Colors.BOLD}├─{Colors.END} Matched Passage:")
+        print(f"   {Colors.YELLOW}{child_text}{Colors.END}")
         
-        print(f"{Colors.BOLD}└─{Colors.END} Text:")
-        print(f"   {Colors.YELLOW}{text}{Colors.END}")
+        # Show parent context (truncated)
+        parent_text = chunk.get('parent_text', '')
+        if len(parent_text) > max_length:
+            parent_text = parent_text[:max_length] + "..."
+        
+        print(f"{Colors.BOLD}└─{Colors.END} Full Context:")
+        print(f"   {Colors.CYAN}{parent_text}{Colors.END}")
         
     def generate_answer(self, query: str, context_chunks: List[Dict]):
         """
@@ -275,8 +282,18 @@ class SanskritRAGCLI:
             query: User query
             context_chunks: Retrieved context
         """
+
         if not self.llm_generator:
             print(f"\n{Colors.YELLOW}LLM not initialized. Skipping generation.{Colors.END}")
+            return
+
+        # Check for empty context (e.g. all filtered out by threshold)
+        if not context_chunks:
+            print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*70}{Colors.END}")
+            print(f"{Colors.BOLD}{Colors.GREEN}GENERATED ANSWER{Colors.END}")
+            print(f"{Colors.BOLD}{Colors.GREEN}{'='*70}{Colors.END}\n")
+            print(f"{Colors.YELLOW}No relevant information found in the provided texts (low similarity scores).{Colors.END}\n")
+            print(f"{Colors.BOLD}{Colors.GREEN}{'='*70}{Colors.END}\n")
             return
 
         print(f"\n{Colors.YELLOW}Generating answer...{Colors.END}")

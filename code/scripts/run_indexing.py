@@ -1,4 +1,4 @@
-"""Script to build all indexes."""
+"""Script to build indexes from parent-child chunks."""
 
 import sys
 import argparse
@@ -16,13 +16,19 @@ from code.src.utils.logger import setup_logger
 logger = setup_logger(__name__, log_file="logs/indexing.log")
 
 def main():
-    """Run indexing pipeline."""
-    parser = argparse.ArgumentParser(description="Build BM25 and vector indexes")
+    """Run indexing pipeline for parent-child chunks."""
+    parser = argparse.ArgumentParser(description="Build indexes from parent-child chunks")
     parser.add_argument(
-        '--chunks',
+        '--parents',
         type=str,
-        default='data/processed/chunks.json',
-        help='Path to chunks JSON file'
+        default='data/processed/parent_chunks.json',
+        help='Path to parent chunks JSON file'
+    )
+    parser.add_argument(
+        '--children',
+        type=str,
+        default='data/processed/child_chunks.json',
+        help='Path to child chunks JSON file'
     )
     parser.add_argument(
         '--config',
@@ -43,7 +49,10 @@ def main():
     start_time = time.time()
     
     try:
-        pipeline.build_indexes(chunks_path=args.chunks)
+        stats = pipeline.build_indexes(
+            parent_chunks_path=args.parents,
+            child_chunks_path=args.children
+        )
         
         elapsed_time = time.time() - start_time
         logger.info(f"\nTotal indexing time: {elapsed_time:.2f} seconds")
@@ -54,7 +63,7 @@ def main():
     
     finally:
         # Cleanup
-        pipeline.metadata_store.close()
+        pipeline.close()
 
 if __name__ == "__main__":
     main()
