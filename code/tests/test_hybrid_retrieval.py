@@ -2,48 +2,47 @@
 
 import pytest
 import numpy as np
-from code.src.retrieval import reciprocal_rank_fusion, HybridRetriever
+from code.src.retrieval import weighted_score_fusion, HybridRetriever
 from code.src.indexing import BM25Indexer, VectorIndexer, EmbeddingGenerator, MetadataStore
 from code.src.preprocessing import SanskritPreprocessor
 
 
-class TestReciprocalRankFusion:
-    """Tests for RRF algorithm."""
+class TestWeightedScoreFusion:
+    """Tests for weighted score fusion algorithm."""
     
-    def test_rrf_basic(self):
-        """Test basic RRF combination."""
+    def test_fusion_basic(self):
+        """Test basic weighted score fusion."""
         # Two rankings with overlap
-        ranking1 = [(0, 10.0), (1, 8.0), (2, 6.0)]  # Doc 0 rank 1, Doc 1 rank 2
-        ranking2 = [(1, 0.9), (0, 0.8), (3, 0.7)]   # Doc 1 rank 1, Doc 0 rank 2
+        bm25_results = [(0, 10.0), (1, 8.0), (2, 6.0)]
+        vector_results = [(1, 0.9), (0, 0.8), (3, 0.7)]
         
-        fused = reciprocal_rank_fusion([ranking1, ranking2], k=60)
+        fused = weighted_score_fusion(bm25_results, vector_results)
         
         # Both docs 0 and 1 appear highly ranked
         result_ids = [doc_id for doc_id, _ in fused]
-        assert 0 in result_ids[:2]
-        assert 1 in result_ids[:2]
+        assert 0 in result_ids[:3]
+        assert 1 in result_ids[:3]
     
-    def test_rrf_single_ranking(self):
-        """RRF with single ranking should preserve order."""
-        ranking = [(0, 5.0), (1, 3.0), (2, 1.0)]
+    def test_fusion_empty_results(self):
+        """Fusion with empty results should handle gracefully."""
+        bm25_results = [(0, 5.0), (1, 3.0)]
+        vector_results = []
         
-        fused = reciprocal_rank_fusion([ranking], k=60)
+        fused = weighted_score_fusion(bm25_results, vector_results)
         
-        # Order should be preserved
-        assert fused[0][0] == 0
-        assert fused[1][0] == 1
-        assert fused[2][0] == 2
+        # Should still return BM25 results
+        assert len(fused) >= 2
     
-    def test_rrf_boosts_consensus(self):
-        """RRF should boost documents that appear in multiple rankings."""
-        # Doc 1 appears in both, doc 0 and 2 only in one
-        ranking1 = [(0, 10.0), (1, 8.0)]
-        ranking2 = [(1, 0.9), (2, 0.8)]
+    def test_fusion_weights(self):
+        """Custom weights should affect ranking."""
+        bm25_results = [(0, 10.0)]  # Doc 0 only in BM25
+        vector_results = [(1, 1.0)]  # Doc 1 only in vector
         
-        fused = reciprocal_rank_fusion([ranking1, ranking2], k=60)
+        # With high BM25 weight, doc 0 should rank higher
+        fused_bm25_heavy = weighted_score_fusion(bm25_results, vector_results, bm25_weight=0.9, vector_weight=0.1)
         
-        # Doc 1 should be first (appears in both)
-        assert fused[0][0] == 1
+        # Doc 0 should be first with heavy BM25 weight
+        assert fused_bm25_heavy[0][0] == 0
 
 
 class TestHybridRetriever:

@@ -1,0 +1,159 @@
+{
+  "summary": {
+    "preprocessing": {
+      "mean_ms": 0.5163124629429409,
+      "min_ms": 0.0,
+      "max_ms": 1.6131401062011719,
+      "count": 7
+    },
+    "bm25_search": {
+      "mean_ms": 0.2334458487374442,
+      "min_ms": 0.0,
+      "max_ms": 1.0399818420410156,
+      "count": 7
+    },
+    "vector_search": {
+      "mean_ms": 38.83675166538784,
+      "min_ms": 22.823095321655273,
+      "max_ms": 61.754465103149414,
+      "count": 7
+    },
+    "total_retrieval": {
+      "mean_ms": 87.49069486345563,
+      "min_ms": 49.53575134277344,
+      "max_ms": 204.77890968322754,
+      "count": 7
+    },
+    "recall_at_5": {
+      "mean": 0.75,
+      "min": 0.0,
+      "max": 1.0
+    }
+  },
+  "test_results": [
+    {
+      "query_id": 1,
+      "category": "character",
+      "query": "\u0936\u0902\u0916\u0928\u093e\u0926\u0903 \u0915\u0903 \u0906\u0938\u0940\u0924\u094d?",
+      "preprocessing_ms": 1.6131401062011719,
+      "bm25_ms": 0.0,
+      "vector_ms": 48.28667640686035,
+      "total_ms": 204.77890968322754,
+      "recall_at_5": 1.0,
+      "found_in_top5": true,
+      "retrieved_stories": [
+        "\u092e\u0942\u0930\u094d\u0916\u092d\u0943\u0924\u094d\u092f\u0938\u094d\u092f",
+        "\u0935\u0943\u0926\u094d\u0927\u093e\u092f\u093e\u0903 \u091a\u093e\u0930\u094d\u0924\u0941\u092f\u092e\u094d",
+        "\u0936\u0940\u0924\u0902 \u092c\u0939\u0941 \u092c\u093e\u0927\u0924\u093f \u0964",
+        "\u091a\u0924\u0941\u0930\u0938\u094d\u092f \u0915\u093e\u0932\u0940\u0926\u093e\u0938\u0938\u094d\u092f \u0964"
+      ]
+    },
+    {
+      "query_id": 2,
+      "category": "story",
+      "query": "\u0915\u093e\u0932\u0940\u0926\u093e\u0938\u0938\u094d\u092f \u0935\u093f\u0937\u092f\u0947 \u0915\u093f\u092e\u094d \u0935\u0930\u094d\u0923\u093f\u0924\u092e\u094d?",
+      "preprocessing_ms": 0.0,
+      "bm25_ms": 0.0,
+      "vector_ms": 61.754465103149414,
+      "total_ms": 94.67291831970215,
+      "recall_at_5": 0.0,
+      "found_in_top5": false,
+      "retrieved_stories": [
+        "\u0935\u0943\u0926\u094d\u0927\u093e\u092f\u093e\u0903 \u091a\u093e\u0930\u094d\u0924\u0941\u092f\u092e\u094d",
+        "\u092e\u0942\u0930\u094d\u0916\u092d\u0943\u0924\u094d\u092f\u0938\u094d\u092f",
+        "\u091a\u0924\u0941\u0930\u0938\u094d\u092f \u0915\u093e\u0932\u0940\u0926\u093e\u0938\u0938\u094d\u092f \u0964",
+        "\u0936\u0940\u0924\u0902 \u092c\u0939\u0941 \u092c\u093e\u0927\u0924\u093f \u0964"
+      ]
+    },
+    {
+      "query_id": 3,
+      "category": "moral",
+      "query": "\u092e\u0942\u0930\u094d\u0916\u092d\u0943\u0924\u094d\u092f\u0938\u094d\u092f \u0938\u0902\u0938\u0930\u094d\u0917\u093e\u0924\u094d \u0915\u093f\u092e\u094d \u092d\u0935\u0924\u093f?",
+      "preprocessing_ms": 0.3802776336669922,
+      "bm25_ms": 0.5941390991210938,
+      "vector_ms": 44.03352737426758,
+      "total_ms": 79.7109603881836,
+      "recall_at_5": 1.0,
+      "found_in_top5": true,
+      "retrieved_stories": [
+        "\u092e\u0942\u0930\u094d\u0916\u092d\u0943\u0924\u094d\u092f\u0938\u094d\u092f",
+        "\u0935\u0943\u0926\u094d\u0927\u093e\u092f\u093e\u0903 \u091a\u093e\u0930\u094d\u0924\u0941\u092f\u092e\u094d",
+        "\u0936\u0940\u0924\u0902 \u092c\u0939\u0941 \u092c\u093e\u0927\u0924\u093f \u0964",
+        "\u091a\u0924\u0941\u0930\u0938\u094d\u092f \u0915\u093e\u0932\u0940\u0926\u093e\u0938\u0938\u094d\u092f \u0964"
+      ]
+    },
+    {
+      "query_id": 4,
+      "category": "verse",
+      "query": "\u0909\u0926\u094d\u092f\u092e\u0903 \u0938\u093e\u0939\u0938\u092e\u094d \u0927\u0948\u0930\u094d\u092f\u092e\u094d \u0907\u0924\u093f \u0936\u094d\u0932\u094b\u0915\u0903 \u0915\u0941\u0924\u094d\u0930 \u0905\u0938\u094d\u0924\u093f?",
+      "preprocessing_ms": 0.0,
+      "bm25_ms": 1.0399818420410156,
+      "vector_ms": 33.986806869506836,
+      "total_ms": 68.44758987426758,
+      "recall_at_5": 1.0,
+      "found_in_top5": true,
+      "retrieved_stories": [
+        "\u0935\u0943\u0926\u094d\u0927\u093e\u092f\u093e\u0903 \u091a\u093e\u0930\u094d\u0924\u0941\u092f\u092e\u094d",
+        "\u092e\u0942\u0930\u094d\u0916\u092d\u0943\u0924\u094d\u092f\u0938\u094d\u092f",
+        "\u091a\u0924\u0941\u0930\u0938\u094d\u092f \u0915\u093e\u0932\u0940\u0926\u093e\u0938\u0938\u094d\u092f \u0964",
+        "\u0936\u0940\u0924\u0902 \u092c\u0939\u0941 \u092c\u093e\u0927\u0924\u093f \u0964"
+      ]
+    },
+    {
+      "query_id": 5,
+      "category": "character",
+      "query": "What happened to the old woman in winter?",
+      "preprocessing_ms": 1.0709762573242188,
+      "bm25_ms": 0.0,
+      "vector_ms": 30.797243118286133,
+      "total_ms": 59.023141860961914,
+      "recall_at_5": 0.5,
+      "found_in_top5": true,
+      "retrieved_stories": [
+        "\u0936\u0940\u0924\u0902 \u092c\u0939\u0941 \u092c\u093e\u0927\u0924\u093f \u0964",
+        "\u091a\u0924\u0941\u0930\u0938\u094d\u092f \u0915\u093e\u0932\u0940\u0926\u093e\u0938\u0938\u094d\u092f \u0964",
+        "\u092e\u0942\u0930\u094d\u0916\u092d\u0943\u0924\u094d\u092f\u0938\u094d\u092f",
+        "\u0935\u0943\u0926\u094d\u0927\u093e\u092f\u093e\u0903 \u091a\u093e\u0930\u094d\u0924\u0941\u092f\u092e\u094d"
+      ]
+    },
+    {
+      "query_id": 6,
+      "category": "story",
+      "query": "dharma",
+      "preprocessing_ms": 0.0,
+      "bm25_ms": 0.0,
+      "vector_ms": 30.175447463989258,
+      "total_ms": 56.26559257507324,
+      "recall_at_5": null,
+      "found_in_top5": false,
+      "retrieved_stories": [
+        "\u0935\u0943\u0926\u094d\u0927\u093e\u092f\u093e\u0903 \u091a\u093e\u0930\u094d\u0924\u0941\u092f\u092e\u094d",
+        "\u0936\u0940\u0924\u0902 \u092c\u0939\u0941 \u092c\u093e\u0927\u0924\u093f \u0964",
+        "\u092e\u0942\u0930\u094d\u0916\u092d\u0943\u0924\u094d\u092f\u0938\u094d\u092f",
+        "\u091a\u0924\u0941\u0930\u0938\u094d\u092f \u0915\u093e\u0932\u0940\u0926\u093e\u0938\u0938\u094d\u092f \u0964"
+      ]
+    },
+    {
+      "query_id": 7,
+      "category": "cross-script",
+      "query": "\u092e\u0942\u0930\u094d\u0916",
+      "preprocessing_ms": 0.5497932434082031,
+      "bm25_ms": 0.0,
+      "vector_ms": 22.823095321655273,
+      "total_ms": 49.53575134277344,
+      "recall_at_5": 1.0,
+      "found_in_top5": true,
+      "retrieved_stories": [
+        "\u092e\u0942\u0930\u094d\u0916\u092d\u0943\u0924\u094d\u092f\u0938\u094d\u092f",
+        "\u091a\u0924\u0941\u0930\u0938\u094d\u092f \u0915\u093e\u0932\u0940\u0926\u093e\u0938\u0938\u094d\u092f \u0964",
+        "\u0935\u0943\u0926\u094d\u0927\u093e\u092f\u093e\u0903 \u091a\u093e\u0930\u094d\u0924\u0941\u092f\u092e\u094d",
+        "\u0936\u0940\u0924\u0902 \u092c\u0939\u0941 \u092c\u093e\u0927\u0924\u093f \u0964"
+      ]
+    }
+  ],
+  "memory_mb": {
+    "initial": 100.0,
+    "loaded": 100.0,
+    "peak": 100.0
+  }
+}

@@ -197,7 +197,8 @@ def run_evaluation():
         vector_indexer=vector_indexer,
         embedding_generator=embedding_generator,
         metadata_store=metadata_store,
-        preprocessor=preprocessor
+        preprocessor=preprocessor,
+        config=config
     )
     
     loaded_mem = measure_memory()
@@ -240,7 +241,7 @@ def run_evaluation():
         metrics.add_latency('vector_search', vector_time)
         
         # Fusion (simplified - just using retriever)
-        chunks = retriever.retrieve(test_case['query'], top_k=5)
+        chunks = retriever.search(test_case['query'], top_k=5)
         total_time = time.time() - start
         metrics.add_latency('total_retrieval', total_time)
         
@@ -259,7 +260,7 @@ def run_evaluation():
         
         print(f"  Retrieved from stories:")
         for i, chunk in enumerate(chunks, 1):
-            print(f"    {i}. {chunk['story_title']} (score: {chunk['retrieval_score']:.4f})")
+            print(f"    {i}. {chunk['story_title']} (score: {chunk['score']:.4f})")
         
         # Check if ground truth found
         found_in_top5 = False
