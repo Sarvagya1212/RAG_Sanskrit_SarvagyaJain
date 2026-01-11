@@ -1,15 +1,13 @@
-"""Chunking module for Sanskrit text processing."""
+"""Hierarchical chunking module for Sanskrit texts."""
 
-from code.src.chunking.chunker import (
-    Chunk,
-    SanskritChunker,
-    detect_content_type,
-    estimate_token_count
+from code.src.chunking.hierarchical_chunker import (
+    HierarchicalChunker,
+    ParentChunk,
+    ChildChunk
 )
 
 __all__ = [
-    'Chunk',
-    'SanskritChunker',
-    'detect_content_type',
-    'estimate_token_count'
+    'HierarchicalChunker',
+    'ParentChunk',
+    'ChildChunk'
 ]
