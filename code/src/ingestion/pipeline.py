@@ -26,18 +26,21 @@ class IngestionPipeline:
     
     def process_file(self, file_path: str) -> List[Story]:
         """
-        Process a single file through the pipeline.
+        Process a single file (text or PDF).
         
         Args:
-            file_path: Path to input file
+            file_path: Path to the file
             
         Returns:
             List of Story objects
         """
         logger.info(f"Processing file: {file_path}")
         
-        # Load document
-        document = self.loader.load_text_file(file_path)
+        # Auto-detect file type and use appropriate loader
+        if file_path.lower().endswith('.pdf'):
+            document = self.loader.load_pdf(file_path)
+        else:
+            document = self.loader.load_text_file(file_path)
         
         # Segment into stories
         stories = self.segmenter.segment_stories(document.text)
@@ -51,10 +54,10 @@ class IngestionPipeline:
     
     def process_directory(self, directory: str) -> List[Story]:
         """
-        Process all text files in a directory.
+        Process all text and PDF files in a directory.
         
         Args:
-            directory: Path to directory containing .txt files
+            directory: Path to directory containing .txt or .pdf files
             
         Returns:
             List of all stories from all files
@@ -62,23 +65,25 @@ class IngestionPipeline:
         dir_path = Path(directory)
         all_stories = []
         
-        # Find all .txt files
+        # Find all .txt and .pdf files
         txt_files = list(dir_path.glob("*.txt"))
+        pdf_files = list(dir_path.glob("*.pdf"))
+        all_files = txt_files + pdf_files
         
-        if not txt_files:
-            logger.warning(f"No .txt files found in {directory}")
+        if not all_files:
+            logger.warning(f"No .txt or .pdf files found in {directory}")
             return []
         
-        logger.info(f"Found {len(txt_files)} text files to process")
+        logger.info(f"Found {len(all_files)} files to process ({len(txt_files)} txt, {len(pdf_files)} pdf)")
         
         # Process each file
-        for txt_file in txt_files:
+        for file in all_files:
             try:
-                stories = self.process_file(str(txt_file))
+                stories = self.process_file(str(file))
                 all_stories.extend(stories)
-                logger.info(f"Processed {txt_file.name}: {len(stories)} stories")
+                logger.info(f"Processed {file.name}: {len(stories)} stories")
             except Exception as e:
-                logger.error(f"Error processing {txt_file.name}: {e}")
+                logger.error(f"Error processing {file.name}: {e}")
         
         return all_stories
     

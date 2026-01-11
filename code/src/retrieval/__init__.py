@@ -2,10 +2,10 @@
 
 from code.src.retrieval.hybrid_retriever import (
     HybridRetriever,
-    reciprocal_rank_fusion
+    weighted_score_fusion
 )
 
 __all__ = [
     'HybridRetriever',
-    'reciprocal_rank_fusion'
+    'weighted_score_fusion'
 ]

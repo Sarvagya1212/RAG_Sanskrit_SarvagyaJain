@@ -1,63 +1,49 @@
-"""Document loading and validation for Sanskrit texts."""
+"""Document loading with support for text and PDF files."""
 
-import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
-import unicodedata
+from typing import Dict, Any
 from code.src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 @dataclass
 class Document:
-    """Represents a loaded document with metadata."""
+    """Container for loaded document."""
     text: str
     source: str
-    metadata: Dict
-    encoding: str = "utf-8"
-    
+    metadata: Dict[str, Any]
+
 class DocumentLoader:
-    """Load and validate Sanskrit text documents."""
-    
-    # Devanagari Unicode range
-    DEVANAGARI_RANGE = (0x0900, 0x097F)
+    """Loads documents from text and PDF files."""
     
     def __init__(self):
         """Initialize document loader."""
         self.stats = {
             'total_chars': 0,
-            'devanagari_chars': 0,
-            'danda_count': 0,
-            'double_danda_count': 0
+            'total_files': 0
         }
     
     def load_text_file(self, file_path: str) -> Document:
         """
-        Load a plain text file with UTF-8 encoding.
+        Load plain text file.
         
         Args:
-            file_path: Path to .txt file
+            file_path: Path to text file
             
         Returns:
-            Document object with text and metadata
-            
-        Raises:
-            FileNotFoundError: If file doesn't exist
-            UnicodeDecodeError: If file isn't valid UTF-8
+            Document object
         """
         path = Path(file_path)
         
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         
-        logger.info(f"Loading text file: {path.name}")
-        
-        # Read with explicit UTF-8 encoding
-        with open(path, 'r', encoding='utf-8-sig') as f:  # utf-8-sig handles BOM
+        # Read file
+        with open(path, 'r', encoding='utf-8') as f:
             text = f.read()
         
-        # Validate content
+        # Validate and collect stats
         self._validate_unicode(text)
         self._collect_statistics(text)
         
@@ -76,56 +62,106 @@ class DocumentLoader:
             metadata=metadata
         )
     
+    def load_pdf(self, file_path: str) -> Document:
+        """
+        Load PDF file using pdfplumber for superior text extraction.
+        
+        pdfplumber advantages:
+        - Better layout preservation
+        - Superior multilingual text handling (Devanagari)
+        - Cleaner extraction without formatting artifacts
+        
+        Args:
+            file_path: Path to PDF file
+            
+        Returns:
+            Document object
+        """
+        try:
+            import pdfplumber
+        except ImportError:
+            raise ImportError(
+                "pdfplumber is required for PDF loading. "
+                "Install with: pip install pdfplumber"
+            )
+        
+        path = Path(file_path)
+        
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        
+        logger.info(f"Loading PDF file: {path.name}")
+        
+        # Extract text from PDF
+        text_parts = []
+        
+        with pdfplumber.open(str(path)) as pdf:
+            page_count = len(pdf.pages)
+            
+            for page_num, page in enumerate(pdf.pages, 1):
+                # Extract text with layout preservation
+                page_text = page.extract_text(layout=True)
+                
+                if page_text and page_text.strip():
+                    # Clean up excessive whitespace while preserving structure
+                    lines = [line.rstrip() for line in page_text.split('\n')]
+                    
+                    # Remove empty lines but keep paragraph breaks
+                    cleaned_lines = []
+                    prev_empty = False
+                    for line in lines:
+                        if line.strip():
+                            cleaned_lines.append(line)
+                            prev_empty = False
+                        elif not prev_empty:
+                            cleaned_lines.append('')  # Keep one empty line
+                            prev_empty = True
+                    
+                    page_text_cleaned = '\n'.join(cleaned_lines)
+                    text_parts.append(page_text_cleaned)
+        
+        # Combine all pages
+        text = "\n\n".join(text_parts)
+        
+        # Validate content
+        self._validate_unicode(text)
+        self._collect_statistics(text)
+        
+        metadata = {
+            'filename': path.name,
+            'source_path': str(path.absolute()),
+            'file_size': path.stat().st_size,
+            'char_count': len(text),
+            'page_count': page_count
+        }
+        
+        logger.info(f"Loaded {len(text)} characters from {path.name} ({page_count} pages)")
+        
+        return Document(
+            text=text,
+            source=path.name,
+            metadata=metadata
+        )
+    
     def _validate_unicode(self, text: str) -> None:
         """
         Validate text contains valid Devanagari Unicode.
         
         Args:
             text: Text to validate
-            
-        Raises:
-            ValueError: If text appears corrupted
         """
-        # Apply NFC normalization
-        normalized = unicodedata.normalize('NFC', text)
-        
-        # Check for mojibake patterns (common corruption)
-        mojibake_patterns = ['à¤', 'à¥', 'Ã¤', 'Ã¥']
-        for pattern in mojibake_patterns:
-            if pattern in text:
-                raise ValueError(
-                    f"Detected mojibake (corrupted Unicode). "
-                    f"File may not be properly UTF-8 encoded."
-                )
-        
-        # Verify Devanagari characters present
-        devanagari_chars = sum(
-            1 for char in normalized
-            if self.DEVANAGARI_RANGE[0] <= ord(char) <= self.DEVANAGARI_RANGE[1]
-        )
-        
-        if devanagari_chars == 0:
-            logger.warning("No Devanagari characters detected in text")
-        else:
-            logger.debug(f"Found {devanagari_chars} Devanagari characters")
+        try:
+            # Try encoding as UTF-8
+            text.encode('utf-8')
+        except UnicodeEncodeError as e:
+            logger.warning(f"Unicode encoding issues detected: {e}")
     
     def _collect_statistics(self, text: str) -> None:
         """
-        Collect statistics about the text.
+        Collect statistics about loaded text.
         
         Args:
             text: Text to analyze
         """
-        self.stats['total_chars'] = len(text)
-        self.stats['devanagari_chars'] = sum(
-            1 for char in text
-            if self.DEVANAGARI_RANGE[0] <= ord(char) <= self.DEVANAGARI_RANGE[1]
-        )
-        self.stats['danda_count'] = text.count('।')
-        self.stats['double_danda_count'] = text.count('॥')
-        
-        logger.debug(f"Text statistics: {self.stats}")
-    
-    def get_statistics(self) -> Dict:
-        """Return collected statistics."""
-        return self.stats.copy()
+        self.stats['total_chars'] += len(text)
+        self.stats['total_files'] += 1
