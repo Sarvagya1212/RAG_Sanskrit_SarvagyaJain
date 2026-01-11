@@ -19,6 +19,7 @@ from code.src.preprocessing.transliterator import (
 from code.src.preprocessing.normalizer import (
     normalize_unicode,
     normalize_anusvara,
+    normalize_vowel_length,
     clean_text,
     remove_punctuation,
     preprocess_text,
@@ -49,8 +50,8 @@ __all__ = [
     # Normalization
     'normalize_unicode',
     'normalize_anusvara',
+    'normalize_vowel_length',
     'clean_text',
-    'remove_punctuation',
     'preprocess_text',
     'preprocess_query',
     'preprocess_document',

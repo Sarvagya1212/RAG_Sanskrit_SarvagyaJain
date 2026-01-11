@@ -98,6 +98,35 @@ def normalize_anusvara(text: str) -> str:
     return text
 
 
+def normalize_vowel_length(text: str) -> str:
+    """
+    Neutralize vowel length distinctions for fuzzy matching.
+    
+    In SLP1:
+    - A (long ā) → a (short a)
+    - I (long ī) → i (short i)
+    - U (long ū) → u (short u)
+    - F (long ṝ) → f (short ṛ)
+    - X (long ḹ) → x (short ḷ)
+    
+    This helps match queries like 'kalidasa' to documents with 'kAlIdAsa'.
+    
+    Args:
+        text: SLP1-encoded text
+        
+    Returns:
+        Text with vowel lengths neutralized
+        
+    Examples:
+        >>> normalize_vowel_length("kAlIdAsaH")
+        'kalidasaH'
+    """
+    if not text:
+        return text
+    
+    return text.translate(str.maketrans("AIUFX", "aiufx"))
+
+
 def clean_text(text: str) -> str:
     """
     Clean and normalize whitespace in text.
@@ -210,7 +239,11 @@ def preprocess_text(text: str, for_indexing: bool = True) -> str:
     if for_indexing:
         slp1_text = normalize_anusvara(slp1_text)
     
-    # Step 6: Clean whitespace
+    # Step 6: Normalize vowel length (for fuzzy matching)
+    if for_indexing:
+        slp1_text = normalize_vowel_length(slp1_text)
+    
+    # Step 7: Clean whitespace
     slp1_text = clean_text(slp1_text)
     
     logger.debug(f"Preprocessed: '{text[:30]}...' → '{slp1_text[:30]}...'")

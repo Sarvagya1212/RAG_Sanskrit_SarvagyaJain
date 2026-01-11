@@ -131,7 +131,11 @@ class SanskritPreprocessor:
         if self.normalize_nasals:
             slp1_text = normalize_anusvara(slp1_text)
         
-        # Step 7: Clean up
+        # Step 7: Vowel length normalization (for fuzzy matching)
+        from code.src.preprocessing.normalizer import normalize_vowel_length
+        slp1_text = normalize_vowel_length(slp1_text)
+        
+        # Step 8: Clean up
         slp1_text = clean_text(slp1_text)
         
         # Calculate timing

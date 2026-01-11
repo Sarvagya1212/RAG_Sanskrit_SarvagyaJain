@@ -20,6 +20,34 @@ SLP1 = sanscript.SLP1
 HK = sanscript.HK  # Harvard-Kyoto (similar to loose roman)
 
 
+def normalize_loose_roman(text: str) -> str:
+    """
+    Normalize loose Roman to Harvard-Kyoto format.
+    
+    Converts common loose transliteration patterns:
+    - aa, ee, oo → A, I, U (long vowels)
+    - sh → z (HK sibilant)
+    
+    Args:
+        text: Loose Roman text
+        
+    Returns:
+        Normalized text ready for HK→SLP1 conversion
+    """
+    if not text:
+        return text
+    
+    # Convert double vowels to capitals (HK long vowels)
+    text = re.sub(r'aa', 'A', text)
+    text = re.sub(r'ee', 'I', text)  
+    text = re.sub(r'oo', 'U', text)
+    
+    # Handle sibilant
+    text = re.sub(r'sh', 'z', text)
+    
+    return text
+
+
 def fix_word_final_h(text: str) -> str:
     """
     Fix word-final 'h' to visarga 'H' in loose Roman text.
@@ -99,8 +127,10 @@ def to_slp1(text: str, source_script: Optional[str] = None) -> str:
             result = transliterate(text, IAST, SLP1)
             
         elif source_script == "loose_roman":
-            # First fix word-final h to H (visarga)
-            fixed_text = fix_word_final_h(text)
+            # Normalize loose Roman (aa → A, etc.)
+            normalized = normalize_loose_roman(text)
+            # Fix word-final h to H (visarga)
+            fixed_text = fix_word_final_h(normalized)
             # Then transliterate from Harvard-Kyoto (closest to loose roman)
             result = transliterate(fixed_text, HK, SLP1)
             
